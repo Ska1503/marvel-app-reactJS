@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Spinner from '../spinner/Spinner';
 import ErrorMessage from '../errorMassage/ErrorMessage'
 import MarvelService from '../../services/MarvelServices'
@@ -8,75 +8,64 @@ import hero from '../../resources/img/marvel.jpg'
 
 
 
-class CharList extends Component {
+const CharList = (props) => {
 
-    state = {
-        charList: [],
-        loading: true,
-        error: false,
-        newItemLoading: false,
-        offset: 210
-    }
+    const [charList, setCharList] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(false)
+    const [newItemLoading, setNewItemLoading] = useState(false)
+    const [offset, setOffset] = useState(210)
 
-    marvelService = new MarvelService()
+
+    const marvelService = new MarvelService()
 
     // После вставки компонента в DOM, делаем сетевой звпрос
-    componentDidMount() {
-        this.onRequest()
-    }
+    useEffect(() => {
+        onRequest()
+    }, [])
 
     // Пагинация данных (досагрузка персонажей при клике на кнопку "LOAD MORE")
-    onRequest = (offset) => {
-        this.onCharListLoading()
-        this.marvelService.getAllCharacters(offset)
-            .then(this.onCharListLoaded)
-            .catch(this.OnError)
+    const onRequest = (offset) => {
+        onCharListLoading()
+        marvelService.getAllCharacters(offset)
+            .then(onCharListLoaded)
+            .catch(onError)
     }
 
-    onCharListLoading = () => {
-        this.setState({
-            newItemLoading: true
-        })
+    const onCharListLoading = () => {
+        setNewItemLoading(true)
     }
 
-    onCharListLoaded = (newCharList) => {
-        this.setState(({ offset, charList }) => ({
-            charList: [...charList, ...newCharList], // Наполняем массив charList данными персонажей
-            loading: false,
-            newItemLoading: false,
-            offset: offset + 9
-        }))
+    const onCharListLoaded = (newCharList) => {
+        setCharList(charList => [...charList, ...newCharList]) // Наполняем массив charList данными персонажей
+        setLoading(false)
+        setNewItemLoading(false)
+        setOffset(offset => offset + 9)
     }
 
     //Устранение ошибки при запросе
-    onError = () => {
-        this.setState({
-            loading: false,
-            error: true
-        })
+    const onError = () => {
+        setLoading(false)
+        setError(true)
     }
 
-    itemRefs = []
+    const itemRefs = useRef([])
 
-    setRef = ref => {
-        this.itemRefs.push(ref)
+    const focusOnItems = (id) => {
+        itemRefs.current.forEach(item => item.classList.remove('char__item_selected'))
+        itemRefs.current[id].classList.add('char__item_selected')
     }
 
-    focusOnItems = (id) => {
-        this.itemRefs.forEach(item => item.classList.remove('char__item_selected'));
-        this.itemRefs[id].classList.add('char__item_selected');
-    }
-
-    renderItems(arr) {
+    function renderItems(arr) {
         const items = arr.map((card, i) => {
             // Если отсутствует превью, ставим заглушку
             if (card.thumbnail === 'http://i.annihil.us/u/prod/marvel/i/mg/b/40/image_not_available.jpg' || card.thumbnail === 'http://i.annihil.us/u/prod/marvel/i/mg/f/60/4c002e0305708.gif') {
                 return (
                     <li className="char__item"
-                        ref={this.setRef}
+                        ref={el => itemRefs.current[i] = el}
                         onClick={() => {
-                            this.props.onCharSelected(card.id)
-                            this.focusOnItems(i)
+                            props.onCharSelected(card.id)
+                            focusOnItems(i)
                         }}
                         key={card.id} >
                         <img src={hero} alt={hero} />
@@ -87,10 +76,10 @@ class CharList extends Component {
 
             return (
                 <li className="char__item"
-                    ref={this.setRef}
+                    ref={el => itemRefs.current[i] = el}
                     onClick={() => {
-                        this.props.onCharSelected(card.id)
-                        this.focusOnItems(i)
+                        props.onCharSelected(card.id)
+                        focusOnItems(i)
                     }}
                     key={card.id} >
                     <img src={card.thumbnail} alt={card.name} />
@@ -106,28 +95,27 @@ class CharList extends Component {
         )
     }
 
-    render() {
-        const { charList, loading, error, offset, newItemLoading } = this.state
-        const items = this.renderItems(charList)
 
-        const errorMessage = error && <ErrorMessage />
-        const spinner = loading && <Spinner />
-        const content = !(loading || error) && items
+    const items = renderItems(charList)
 
-        return (
-            <div className="char__list">
-                {content}
-                {errorMessage}
-                {spinner}
-                <button
-                    className="button button__main button__long"
-                    disabled={newItemLoading}
-                    onClick={() => this.onRequest(offset)}>
-                    <div className="inner">load more</div>
-                </button>
-            </div>
-        )
-    }
+    const errorMessage = error && <ErrorMessage />
+    const spinner = loading && <Spinner />
+    const content = !(loading || error) && items
+
+    return (
+        <div className="char__list">
+            {content}
+            {errorMessage}
+            {spinner}
+            <button
+                className="button button__main button__long"
+                disabled={newItemLoading}
+                onClick={() => onRequest(offset)}>
+                <div className="inner">load more</div>
+            </button>
+        </div>
+    )
+
 }
 
 export default CharList;
